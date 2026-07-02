@@ -19,10 +19,12 @@ import com.getcapacitor.annotation.PermissionCallback;
     name = "MusicScanner",
     permissions = {
         @Permission(
-            alias = "audio",
-            strings = {
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            }
+            alias = "audio_legacy",
+            strings = { Manifest.permission.READ_EXTERNAL_STORAGE }
+        ),
+        @Permission(
+            alias = "audio_tiramisu",
+            strings = { "android.permission.READ_MEDIA_AUDIO" }
         )
     }
 )
@@ -30,18 +32,15 @@ public class MusicScannerPlugin extends Plugin {
 
     @PluginMethod
     public void scanMusic(PluginCall call) {
-        // For Android 13+ (API 33+), we check READ_MEDIA_AUDIO permission.
-        // For older versions, we check READ_EXTERNAL_STORAGE.
+        // Check permissions based on Android API level
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            String readMediaAudio = "android.permission.READ_MEDIA_AUDIO";
-            if (getActivity().checkSelfPermission(readMediaAudio) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                getActivity().requestPermissions(new String[]{readMediaAudio}, 12345);
-                // Return immediate placeholder, or wait. For simplicity, request permission
-                // and let performScan handle checking if permission was granted.
+            if (getPermissionState("audio_tiramisu") != com.getcapacitor.PermissionState.GRANTED) {
+                requestPermissionForAlias("audio_tiramisu", call, "audioPermissionCallback");
+                return;
             }
         } else {
-            if (getPermissionState("audio") != com.getcapacitor.PermissionState.GRANTED) {
-                requestPermissionForAlias("audio", call, "audioPermissionCallback");
+            if (getPermissionState("audio_legacy") != com.getcapacitor.PermissionState.GRANTED) {
+                requestPermissionForAlias("audio_legacy", call, "audioPermissionCallback");
                 return;
             }
         }
@@ -50,10 +49,19 @@ public class MusicScannerPlugin extends Plugin {
 
     @PermissionCallback
     private void audioPermissionCallback(PluginCall call) {
-        if (getPermissionState("audio") == com.getcapacitor.PermissionState.GRANTED) {
-            performScan(call);
+        // Handle post-permission request callback
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (getPermissionState("audio_tiramisu") == com.getcapacitor.PermissionState.GRANTED) {
+                performScan(call);
+            } else {
+                call.reject("Permission denied to read audio files");
+            }
         } else {
-            call.reject("Permission denied to read audio files");
+            if (getPermissionState("audio_legacy") == com.getcapacitor.PermissionState.GRANTED) {
+                performScan(call);
+            } else {
+                call.reject("Permission denied to read audio files");
+            }
         }
     }
 
@@ -87,7 +95,7 @@ public class MusicScannerPlugin extends Plugin {
                     long durationMs = cursor.getLong(durationCol);
                     double durationSec = durationMs / 1000.0;
                     
-                    // RF-B01: Skip short audios (<15s)
+                    // Skip short sound effects and voice clips (less than 15 seconds)
                     if (durationSec < 15.0) {
                         continue;
                     }
@@ -105,7 +113,7 @@ public class MusicScannerPlugin extends Plugin {
                     track.put("album", album != null && !album.equals("<unknown>") ? album : "Unknown Album");
                     track.put("duration", durationSec);
                     track.put("filePath", path);
-                    track.put("genre", "Unknown Genre");
+                    track.put("genre", "Local Music");
                     
                     // Extract folder name
                     String folderName = "Root";
