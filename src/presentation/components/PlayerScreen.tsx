@@ -50,48 +50,48 @@ export const PlayerScreen: React.FC = () => {
 
   return (
     <div className="player-screen">
+      {/* Ambient background styling */}
+      <div className="player-ambient-bg"></div>
+
       {/* Header */}
-      <div className="player-header">
+      <div className="player-header" style={{ zIndex: 10 }}>
         <button className="player-btn" onClick={() => setActiveScreen('library')}>
           <ChevronDown size={24} />
         </button>
         <h2>Reproduciendo</h2>
+        <div style={{ width: 40 }}></div>
+      </div>
+
+      {/* Album Artwork - Spotify Style Square */}
+      <div className="artwork-container" style={{ zIndex: 10 }}>
+        <div className="artwork-wrapper-spotify">
+          {currentTrack.coverUrl ? (
+            <img src={currentTrack.coverUrl} alt="Cover" className="artwork-spotify" />
+          ) : (
+            <div className="artwork-placeholder">
+              <Disc size={80} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Info labels - Left aligned with Heart on right (Spotify style) */}
+      <div className="playback-details" style={{ zIndex: 10 }}>
+        <div className="playback-title-wrapper">
+          <h3 className="playback-title">{currentTrack.title}</h3>
+          <p className="playback-artist">{currentTrack.artist}</p>
+        </div>
         <button 
-          className={`player-btn ${isFavorite ? 'active' : ''}`}
-          style={{ color: isFavorite ? '#ff4b72' : '#fff' }}
+          className="player-btn" 
+          style={{ color: isFavorite ? '#1DB954' : '#b3b3b3', padding: 0 }}
           onClick={() => toggleFavorite(currentTrack.id)}
         >
-          <Heart size={20} fill={isFavorite ? '#ff4b72' : 'none'} />
+          <Heart size={26} fill={isFavorite ? '#1DB954' : 'none'} strokeWidth={isFavorite ? 0 : 2} />
         </button>
       </div>
 
-      {/* Album Artwork / Vinyl Disc */}
-      <div className="artwork-container">
-        <div className={`disc-wrapper ${playbackState.isPlaying ? 'playing' : ''}`}>
-          <div className="disc">
-            <div className="disc-vinyl-grooves"></div>
-            {currentTrack.coverUrl ? (
-              <img src={currentTrack.coverUrl} alt="Cover" className="disc-cover" />
-            ) : (
-              <div className="artwork-placeholder" style={{ borderRadius: '50%', width: '130px', height: '130px' }}>
-                <Disc size={64} />
-              </div>
-            )}
-            <div className="disc-center-hole"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Info labels */}
-      <div className="playback-details">
-        <div className="playback-title-wrapper">
-          <h3 className="playback-title">{currentTrack.title}</h3>
-        </div>
-        <p className="playback-artist">{currentTrack.artist}</p>
-      </div>
-
       {/* Seekbar Slider */}
-      <div className="seekbar-container">
+      <div className="seekbar-container" style={{ zIndex: 10 }}>
         <input
           type="range"
           className="slider"
@@ -100,11 +100,11 @@ export const PlayerScreen: React.FC = () => {
           value={playbackState.currentTime}
           onChange={handleSeekChange}
           style={{
-            background: `linear-gradient(to right, hsl(var(--accent)) 0%, hsl(var(--accent-secondary)) ${
+            background: `linear-gradient(to right, #ffffff 0%, #ffffff ${
               playbackState.duration ? (playbackState.currentTime / playbackState.duration) * 100 : 0
-            }%, rgba(255,255,255,0.06) ${
+            }%, rgba(255,255,255,0.2) ${
               playbackState.duration ? (playbackState.currentTime / playbackState.duration) * 100 : 0
-            }%, rgba(255,255,255,0.06) 100%)`
+            }%, rgba(255,255,255,0.2) 100%)`
           }}
         />
         <div className="time-display">
@@ -113,8 +113,8 @@ export const PlayerScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Media Controls */}
-      <div className="player-controls">
+      {/* Media Controls (Play Button is solid white circle) */}
+      <div className="player-controls" style={{ zIndex: 10 }}>
         <button
           className={`control-btn ${playbackState.shuffle ? 'active' : ''}`}
           onClick={toggleShuffle}
@@ -128,9 +128,9 @@ export const PlayerScreen: React.FC = () => {
 
         <button className="control-btn control-btn-main" onClick={togglePlay}>
           {playbackState.isPlaying ? (
-            <Pause size={32} fill="currentColor" style={{ marginLeft: 0 }} />
+            <Pause size={28} fill="#000" color="#000" />
           ) : (
-            <Play size={32} fill="currentColor" style={{ marginLeft: 4 }} />
+            <Play size={28} fill="#000" color="#000" style={{ marginLeft: 3 }} />
           )}
         </button>
 
@@ -152,7 +152,7 @@ export const PlayerScreen: React.FC = () => {
                 right: '4px',
                 fontSize: '8px',
                 fontWeight: '900',
-                background: 'hsl(var(--accent-secondary))',
+                background: '#1DB954',
                 color: '#000',
                 width: '10px',
                 height: '10px',
@@ -169,7 +169,7 @@ export const PlayerScreen: React.FC = () => {
       </div>
 
       {/* Volume slider */}
-      <div className="volume-control-bar">
+      <div className="volume-control-bar" style={{ zIndex: 10 }}>
         <button
           className="control-btn"
           onClick={toggleMute}
@@ -186,9 +186,9 @@ export const PlayerScreen: React.FC = () => {
           value={playbackState.volume}
           onChange={handleVolumeChange}
           style={{
-            background: `linear-gradient(to right, hsl(var(--accent)) 0%, hsl(var(--accent)) ${
+            background: `linear-gradient(to right, #ffffff 0%, #ffffff ${
               playbackState.volume * 100
-            }%, rgba(255,255,255,0.06) ${playbackState.volume * 100}%, rgba(255,255,255,0.06) 100%)`
+            }%, rgba(255,255,255,0.2) ${playbackState.volume * 100}%, rgba(255,255,255,0.2) 100%)`
           }}
         />
       </div>
