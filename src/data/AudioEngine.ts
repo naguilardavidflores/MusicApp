@@ -117,11 +117,15 @@ export class AudioEngine {
 
       // 2. Set source
       if (track.file) {
-        // Play local file
+        // Play local web uploaded file
         this.currentUrl = URL.createObjectURL(track.file);
         this.audio.src = this.currentUrl;
+      } else if (track.filePath) {
+        // Play native Android file via Webview URL translation
+        const { Capacitor } = await import('@capacitor/core');
+        this.audio.src = Capacitor.convertFileSrc(track.filePath);
       } else {
-        throw new Error('Track file reference is missing');
+        throw new Error('Track file reference and path are missing');
       }
 
       this.audio.load();

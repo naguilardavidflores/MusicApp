@@ -51,161 +51,14 @@ interface AudioContextType {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
-// --- Dynamic Mock Synthwave Track Generator Helpers ---
-const writeString = (view: DataView, offset: number, string: string) => {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
-  }
-};
+// Register the custom native plugin to communicate with Android/iOS Java code
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
-const audioBufferToWavBlob = (buffer: AudioBuffer): Blob => {
-  const numOfChan = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const format = 1; // raw PCM
-  const bitDepth = 16;
-  
-  let result;
-  if (numOfChan === 1) {
-    result = buffer.getChannelData(0);
-  } else {
-    const c0 = buffer.getChannelData(0);
-    const c1 = buffer.getChannelData(1);
-    result = new Float32Array(c0.length * 2);
-    for (let i = 0; i < c0.length; i++) {
-      result[i * 2] = c0[i];
-      result[i * 2 + 1] = c1[i];
-    }
-  }
-  
-  const bufferLength = result.length * 2;
-  const arrayBuffer = new ArrayBuffer(44 + bufferLength);
-  const view = new DataView(arrayBuffer);
-  
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + bufferLength, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, format, true);
-  view.setUint16(22, numOfChan, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numOfChan * (bitDepth / 8), true);
-  view.setUint16(32, numOfChan * (bitDepth / 8), true);
-  view.setUint16(34, bitDepth, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, bufferLength, true);
-  
-  let offset = 44;
-  for (let i = 0; i < result.length; i++, offset += 2) {
-    const s = Math.max(-1, Math.min(1, result[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-  }
-  
-  return new Blob([view], { type: 'audio/wav' });
-};
+interface MusicScannerPluginType {
+  scanMusic(): Promise<{ tracks: Track[] }>;
+}
 
-const generateMockWav = async (frequency: number, durationSec: number): Promise<Blob> => {
-  const sampleRate = 22050; // Render fast
-  const numSamples = sampleRate * durationSec;
-  const offlineCtx = new OfflineAudioContext(1, numSamples, sampleRate);
-  
-  const osc = offlineCtx.createOscillator();
-  const gain = offlineCtx.createGain();
-  
-  osc.type = 'triangle';
-  
-  // Melodic arpeggio patterns
-  const baseFreq = frequency;
-  const intervals = [1.0, 1.2, 1.5, 1.8]; // Root, minor 3rd, 5th, minor 7th
-  for (let t = 0; t < durationSec; t += 0.4) {
-    const noteIdx = Math.floor(t * 2.5) % intervals.length;
-    osc.frequency.setValueAtTime(baseFreq * intervals[noteIdx], t);
-  }
-  
-  gain.gain.setValueAtTime(0.12, 0);
-  gain.gain.setValueAtTime(0.12, durationSec - 1.5);
-  gain.gain.linearRampToValueAtTime(0.001, durationSec);
-  
-  osc.connect(gain);
-  gain.connect(offlineCtx.destination);
-  
-  osc.start(0);
-  osc.stop(durationSec);
-  
-  const renderedBuffer = await offlineCtx.startRendering();
-  return audioBufferToWavBlob(renderedBuffer);
-};
-
-const generateMockTracks = async (): Promise<Track[]> => {
-  const tracksList: Track[] = [];
-  const songsData = [
-    { title: 'Neon Dreams', artist: 'Retro Wave', album: 'Sunset Blvd', freq: 130.81, len: 20 },
-    { title: 'Aqua Breeze', artist: 'Lofi Chords', album: 'Chill Ocean', freq: 146.83, len: 25 },
-    { title: 'Cosmic Voyager', artist: 'Astro Pad', album: 'Deep Space', freq: 164.81, len: 30 }
-  ];
-  
-  for (const s of songsData) {
-    try {
-      const blob = await generateMockWav(s.freq, s.len);
-      const file = new File([blob], `${s.title.toLowerCase().replace(/\s+/g, '_')}.wav`, { type: 'audio/wav' });
-      
-      // Cover canvas gradient
-      const canvas = document.createElement('canvas');
-      canvas.width = 300;
-      canvas.height = 300;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const grad = ctx.createLinearGradient(0, 0, 300, 300);
-        if (s.title === 'Neon Dreams') {
-          grad.addColorStop(0, '#f43f5e');
-          grad.addColorStop(1, '#8b5cf6');
-        } else if (s.title === 'Aqua Breeze') {
-          grad.addColorStop(0, '#06b6d4');
-          grad.addColorStop(1, '#10b981');
-        } else {
-          grad.addColorStop(0, '#6366f1');
-          grad.addColorStop(1, '#ec4899');
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 300, 300);
-        
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.arc(150, 150, 80, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 22px Outfit, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(s.title, 150, 140);
-        
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.font = '14px Plus Jakarta Sans, sans-serif';
-        ctx.fillText(s.artist, 150, 175);
-      }
-      
-      const coverUrl = canvas.toDataURL('image/png');
-      const id = btoa(encodeURIComponent(`${file.name}-${file.size}-${s.len}`));
-      
-      tracksList.push({
-        id,
-        title: s.title,
-        artist: s.artist,
-        album: s.album,
-        genre: 'Synthwave',
-        duration: s.len,
-        filePath: file.name,
-        parentFolder: 'Preloaded',
-        coverUrl,
-        file
-      });
-    } catch (e) {
-      console.error('Error creating mock track: ' + s.title, e);
-    }
-  }
-  return tracksList;
-};
+const MusicScanner = registerPlugin<MusicScannerPluginType>('MusicScanner');
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -235,17 +88,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         await dbHelper.init();
 
-        // 1. Load Tracks
+        // 1. Load Tracks from local IndexedDB cache
         const savedTracks = await dbHelper.getAllTracks();
         let processedTracks = [...savedTracks];
         
-        // Generate preloaded synthetic tracks if empty
-        if (processedTracks.length === 0) {
+        // RF-B01: Automatic scan on native platforms (Android phone)
+        if (Capacitor.isNativePlatform()) {
           setIsScanning(true);
-          const generated = await generateMockTracks();
-          await dbHelper.saveTracks(generated);
-          processedTracks = generated;
-          setIsScanning(false);
+          try {
+            const scanResult = await MusicScanner.scanMusic();
+            if (scanResult && scanResult.tracks && scanResult.tracks.length > 0) {
+              await dbHelper.saveTracks(scanResult.tracks);
+              processedTracks = await dbHelper.getAllTracks();
+            }
+          } catch (nativeScanErr) {
+            console.error('Native music scan failed:', nativeScanErr);
+          } finally {
+            setIsScanning(false);
+          }
         }
 
         setTracks(processedTracks);
@@ -294,7 +154,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Load the song into audio element without playing immediately
         if (lastTrackId && lastQueue && lastQueue.length > 0) {
           const track = processedTracks.find((t) => t.id === lastTrackId);
-          if (track && track.file) {
+          if (track && (track.file || track.filePath)) {
             try {
               await audioEngine.playTrack(track, lastPosition || 0);
               audioEngine.pause(); // keep paused on startup
