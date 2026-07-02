@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useAudio } from '../context/AudioContext';
-import { ListMusic, Heart, Trash2, Plus, Disc, X, Play, Music, MinusCircle } from 'lucide-react';
+import { ListMusic, Heart, Trash2, Plus, X, Play, Music, MinusCircle } from 'lucide-react';
 import type { Track } from '../../domain/entities';
+import { Title, Subtitle, MutedText } from './ui/Typography';
+import { Button } from './ui/Button';
+import { IconButton } from './ui/IconButton';
+import { TrackRow } from './ui/TrackRow';
 
 export const PlaylistScreen: React.FC = () => {
   const {
@@ -38,12 +42,6 @@ export const PlaylistScreen: React.FC = () => {
       .filter((t): t is Track => t !== undefined);
   };
 
-  const formatDuration = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const secs = Math.floor(sec % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
-  };
-
   // Sub-browsing: Selected Playlist details view
   if (selectedPlaylistId && activePlaylist) {
     const playlistTracks = getPlaylistTracks(selectedPlaylistId);
@@ -51,90 +49,75 @@ export const PlaylistScreen: React.FC = () => {
     return (
       <div className="screen-content">
         <div className="screen-header" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button className="player-btn" onClick={() => setSelectedPlaylistId(null)} style={{ width: '36px', height: '36px' }}>
+          <IconButton onClick={() => setSelectedPlaylistId(null)} style={{ color: '#fff' }}>
             ←
-          </button>
-          <h1 style={{ fontSize: '20px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          </IconButton>
+          <Title style={{ fontSize: '20px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {activePlaylist.name}
-          </h1>
+          </Title>
           {!activePlaylist.isSystem && (
-            <button
-              className="player-btn"
-              style={{ color: '#ff4b5c', border: '1px solid rgba(255, 75, 92, 0.2)', width: '36px', height: '36px' }}
+            <IconButton
+              style={{ color: '#ff4b5c', border: '1px solid rgba(255, 75, 92, 0.2)', borderRadius: '50%' }}
               onClick={() => deletePlaylist(activePlaylist.id)}
             >
               <Trash2 size={16} />
-            </button>
+            </IconButton>
           )}
         </div>
 
         {/* Play all button if playlist has tracks */}
         {playlistTracks.length > 0 ? (
-          <button
-            className="scan-btn-label"
-            style={{ width: '100%', justifyContent: 'center', marginBottom: '20px' }}
+          <Button
+            variant="primary"
+            style={{ width: '100%', marginBottom: '20px' }}
             onClick={() => playAll(playlistTracks, 0)}
           >
             <Play size={16} fill="currentColor" /> Reproducir Todo
-          </button>
+          </Button>
         ) : (
           <div className="empty-state">
             <Music size={32} />
-            <h3>Lista vacía</h3>
-            <p>Añade canciones a esta lista desde la biblioteca usando el botón "+" en las canciones.</p>
+            <Subtitle>Lista vacía</Subtitle>
+            <MutedText>Añade canciones a esta lista desde la biblioteca usando el botón "+" en las canciones.</MutedText>
           </div>
         )}
 
-        {/* Track Rows */}
-        {playlistTracks.map((track, idx) => {
-          const isPlaying = playbackState.currentTrackId === track.id;
-          return (
-            <div
-              key={track.id}
-              className={`track-item ${isPlaying ? 'playing' : ''}`}
-              onClick={() => playAll(playlistTracks, idx)}
-            >
-              <div className="track-artwork-wrapper">
-                {track.coverUrl ? (
-                  <img src={track.coverUrl} alt="Artwork" className="track-artwork" />
-                ) : (
-                  <div className="artwork-placeholder">
-                    {isPlaying && playbackState.isPlaying ? (
-                      <div className="wave-visualizer">
-                        <div className="wave-bar"></div>
-                        <div className="wave-bar"></div>
-                        <div className="wave-bar"></div>
-                        <div className="wave-bar"></div>
-                      </div>
-                    ) : (
-                      <Disc size={20} />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="track-info">
-                <div className="track-title">{track.title}</div>
-                <div className="track-artist-album">{track.artist}</div>
-              </div>
-
+        {/* Reusable Track Rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {playlistTracks.map((track, idx) => {
+            const isPlaying = playbackState.currentTrackId === track.id;
+            
+            const removeAction = (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  className="mini-control-btn"
-                  style={{ color: '#ff4b5c' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeTrackFromPlaylist(activePlaylist.id, track.id);
-                  }}
+                <IconButton
+                  style={{ color: '#ff4b5c', width: '32px', height: '32px', padding: 0 }}
+                  onClick={() => removeTrackFromPlaylist(activePlaylist.id, track.id)}
                   title="Eliminar de la lista"
                 >
                   <MinusCircle size={16} />
-                </button>
-                <span className="track-duration">{formatDuration(track.duration)}</span>
+                </IconButton>
+                <MutedText style={{ fontVariantNumeric: 'tabular-nums', fontSize: '12px' }}>
+                  {(() => {
+                    const mins = Math.floor(track.duration / 60);
+                    const secs = Math.floor(track.duration % 60).toString().padStart(2, '0');
+                    return `${mins}:${secs}`;
+                  })()}
+                </MutedText>
               </div>
-            </div>
-          );
-        })}
+            );
+
+            return (
+              <TrackRow
+                key={track.id}
+                track={track}
+                isCurrent={isPlaying}
+                isPlaying={playbackState.isPlaying}
+                onClick={() => playAll(playlistTracks, idx)}
+                rightAction={removeAction}
+              />
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -143,10 +126,10 @@ export const PlaylistScreen: React.FC = () => {
     <div className="screen-content">
       {/* Playlists lists view header */}
       <div className="playlist-header-action">
-        <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '26px', fontWeight: 700 }}>Mis Listas</h1>
-        <button onClick={() => setShowCreateModal(true)}>
+        <Title>Mis Listas</Title>
+        <Button onClick={() => setShowCreateModal(true)}>
           <Plus size={14} /> Nueva Lista
-        </button>
+        </Button>
       </div>
 
       {/* Playlist Grid */}
@@ -187,30 +170,30 @@ export const PlaylistScreen: React.FC = () => {
               </div>
 
               <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>{pl.name}</h3>
-                <p style={{ fontSize: '11px', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
+                <Subtitle style={{ fontSize: '15px' }}>{pl.name}</Subtitle>
+                <MutedText style={{ marginTop: '2px' }}>
                   {pTracks.length} {pTracks.length === 1 ? 'canción' : 'canciones'}
-                </p>
+                </MutedText>
               </div>
 
               {!pl.isSystem && (
-                <button
-                  className="mini-control-btn"
-                  style={{ color: 'hsl(var(--text-muted))' }}
+                <IconButton
+                  style={{ color: 'hsl(var(--text-muted))', width: '32px', height: '32px' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     deletePlaylist(pl.id);
                   }}
+                  title="Eliminar lista"
                 >
                   <Trash2 size={16} />
-                </button>
+                </IconButton>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Modal Dialog for New Playlist (Modern aesthetic overlay) */}
+      {/* Modal Dialog for New Playlist */}
       {showCreateModal && (
         <div
           style={{
@@ -236,47 +219,36 @@ export const PlaylistScreen: React.FC = () => {
               maxWidth: '300px',
               padding: '20px',
               border: '1px solid rgba(255,255,255,0.1)',
-              background: '#0e1017',
+              background: '#181818',
               boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Crear Lista</h3>
-              <button
-                type="button"
-                style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer' }}
+              <Subtitle>Nueva Lista</Subtitle>
+              <IconButton 
+                type="button" 
+                style={{ width: '28px', height: '28px' }} 
                 onClick={() => setShowCreateModal(false)}
               >
                 <X size={16} />
-              </button>
+              </IconButton>
             </div>
-            
             <input
               type="text"
               className="search-input"
-              style={{ paddingLeft: '14px', marginBottom: '16px' }}
               placeholder="Nombre de la lista"
-              autoFocus
               value={newPlaylistName}
               onChange={(e) => setNewPlaylistName(e.target.value)}
+              autoFocus
+              style={{ marginBottom: '16px', background: '#282828' }}
             />
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                className="tab-btn"
-                style={{ background: 'rgba(255,255,255,0.04)' }}
-                onClick={() => setShowCreateModal(false)}
-              >
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <Button type="button" variant="secondary" onClick={() => setShowCreateModal(false)}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                className="scan-btn-label"
-                style={{ padding: '8px 16px', fontSize: '11px', flex: 1, borderRadius: '10px', boxShadow: 'none' }}
-              >
+              </Button>
+              <Button type="submit" variant="accent">
                 Crear
-              </button>
+              </Button>
             </div>
           </form>
         </div>

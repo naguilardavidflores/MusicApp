@@ -1,6 +1,9 @@
 import React from 'react';
 import { useAudio } from '../context/AudioContext';
-import { ChevronDown, Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Heart, Volume2, VolumeX, Disc } from 'lucide-react';
+import { ChevronDown, Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Heart, Volume2, VolumeX } from 'lucide-react';
+import { Artwork } from './ui/Artwork';
+import { IconButton } from './ui/IconButton';
+import { Title, Subtitle, MutedText } from './ui/Typography';
 
 export const PlayerScreen: React.FC = () => {
   const {
@@ -55,39 +58,36 @@ export const PlayerScreen: React.FC = () => {
 
       {/* Header */}
       <div className="player-header" style={{ zIndex: 10 }}>
-        <button className="player-btn" onClick={() => setActiveScreen('library')}>
+        <IconButton onClick={() => setActiveScreen('library')} style={{ color: '#fff' }}>
           <ChevronDown size={24} />
-        </button>
-        <h2>Reproduciendo</h2>
+        </IconButton>
+        <Subtitle>Reproduciendo</Subtitle>
         <div style={{ width: 40 }}></div>
       </div>
 
-      {/* Album Artwork - Spotify Style Square */}
+      {/* Reusable Artwork component with Spotify scale */}
       <div className="artwork-container" style={{ zIndex: 10 }}>
-        <div className="artwork-wrapper-spotify">
-          {currentTrack.coverUrl ? (
-            <img src={currentTrack.coverUrl} alt="Cover" className="artwork-spotify" />
-          ) : (
-            <div className="artwork-placeholder">
-              <Disc size={80} />
-            </div>
-          )}
-        </div>
+        <Artwork 
+          coverUrl={currentTrack.coverUrl} 
+          size={320} 
+          borderRadius="8px" 
+          iconSize={80} 
+          style={{ width: '100%', maxWidth: '320px', aspectRatio: '1/1', boxShadow: '0 16px 36px rgba(0, 0, 0, 0.5)' }} 
+        />
       </div>
 
       {/* Info labels - Left aligned with Heart on right (Spotify style) */}
       <div className="playback-details" style={{ zIndex: 10 }}>
         <div className="playback-title-wrapper">
-          <h3 className="playback-title">{currentTrack.title}</h3>
-          <p className="playback-artist">{currentTrack.artist}</p>
+          <Title style={{ fontSize: '20px', marginBottom: '4px' }}>{currentTrack.title}</Title>
+          <MutedText style={{ fontSize: '14px', fontWeight: 500 }}>{currentTrack.artist}</MutedText>
         </div>
-        <button 
-          className="player-btn" 
-          style={{ color: isFavorite ? '#1DB954' : '#b3b3b3', padding: 0 }}
+        <IconButton 
+          style={{ color: isFavorite ? '#1DB954' : '#b3b3b3', width: 'auto', height: 'auto', padding: 0 }}
           onClick={() => toggleFavorite(currentTrack.id)}
         >
           <Heart size={26} fill={isFavorite ? '#1DB954' : 'none'} strokeWidth={isFavorite ? 0 : 2} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Seekbar Slider */}
@@ -113,35 +113,34 @@ export const PlayerScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Media Controls (Play Button is solid white circle) */}
+      {/* Reusable IconButton Controls */}
       <div className="player-controls" style={{ zIndex: 10 }}>
-        <button
-          className={`control-btn ${playbackState.shuffle ? 'active' : ''}`}
+        <IconButton
+          style={{ color: playbackState.shuffle ? '#1DB954' : '#b3b3b3' }}
           onClick={toggleShuffle}
         >
           <Shuffle size={20} />
-        </button>
+        </IconButton>
 
-        <button className="control-btn" onClick={previousTrack}>
+        <IconButton style={{ color: '#fff' }} onClick={previousTrack}>
           <SkipBack size={24} fill="currentColor" />
-        </button>
+        </IconButton>
 
-        <button className="control-btn control-btn-main" onClick={togglePlay}>
+        <IconButton variant="main" onClick={togglePlay}>
           {playbackState.isPlaying ? (
             <Pause size={28} fill="#000" color="#000" />
           ) : (
             <Play size={28} fill="#000" color="#000" style={{ marginLeft: 3 }} />
           )}
-        </button>
+        </IconButton>
 
-        <button className="control-btn" onClick={nextTrack}>
+        <IconButton style={{ color: '#fff' }} onClick={nextTrack}>
           <SkipForward size={24} fill="currentColor" />
-        </button>
+        </IconButton>
 
-        <button
-          className={`control-btn ${playbackState.repeatMode !== 'none' ? 'active' : ''}`}
+        <IconButton
+          style={{ color: playbackState.repeatMode !== 'none' ? '#1DB954' : '#b3b3b3', position: 'relative' }}
           onClick={toggleRepeatMode}
-          style={{ position: 'relative' }}
         >
           <Repeat size={20} />
           {playbackState.repeatMode === 'one' && (
@@ -165,18 +164,17 @@ export const PlayerScreen: React.FC = () => {
               1
             </span>
           )}
-        </button>
+        </IconButton>
       </div>
 
       {/* Volume slider */}
       <div className="volume-control-bar" style={{ zIndex: 10 }}>
-        <button
-          className="control-btn"
+        <IconButton
           onClick={toggleMute}
-          style={{ width: 'auto', height: 'auto', padding: 0 }}
+          style={{ width: 'auto', height: 'auto', padding: 0, color: '#b3b3b3' }}
         >
           {playbackState.volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
+        </IconButton>
         <input
           type="range"
           className="slider"

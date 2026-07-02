@@ -2,6 +2,7 @@ package com.nelson.musicapp;
 
 import android.Manifest;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
@@ -32,7 +33,6 @@ public class MusicScannerPlugin extends Plugin {
 
     @PluginMethod
     public void scanMusic(PluginCall call) {
-        // Check permissions based on Android API level
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (getPermissionState("audio_tiramisu") != com.getcapacitor.PermissionState.GRANTED) {
                 requestPermissionForAlias("audio_tiramisu", call, "audioPermissionCallback");
@@ -49,7 +49,6 @@ public class MusicScannerPlugin extends Plugin {
 
     @PermissionCallback
     private void audioPermissionCallback(PluginCall call) {
-        // Handle post-permission request callback
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (getPermissionState("audio_tiramisu") == com.getcapacitor.PermissionState.GRANTED) {
                 performScan(call);
@@ -70,7 +69,10 @@ public class MusicScannerPlugin extends Plugin {
         ContentResolver contentResolver = getContext().getContentResolver();
         
         Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-        String selection = MediaStore.Audio.Media.IS_MUSIC + "!= 0";
+        
+        // Scan ALL audio files that are at least 15 seconds long.
+        // This includes downloads, recordings, and custom directories, bypassing narrow "IS_MUSIC" constraints.
+        String selection = MediaStore.Audio.Media.DURATION + " >= 15000";
         String sortOrder = MediaStore.Audio.Media.TITLE + " ASC";
         
         String[] projection = {
@@ -95,16 +97,15 @@ public class MusicScannerPlugin extends Plugin {
                     long durationMs = cursor.getLong(durationCol);
                     double durationSec = durationMs / 1000.0;
                     
-                    // Skip short sound effects and voice clips (less than 15 seconds)
-                    if (durationSec < 15.0) {
-                        continue;
-                    }
-
+                    long id = cursor.getLong(idCol);
                     String path = cursor.getString(dataCol);
                     String title = cursor.getString(titleCol);
                     String artist = cursor.getString(artistCol);
                     String album = cursor.getString(albumCol);
-                    long id = cursor.getLong(idCol);
+
+                    // Build the Android Content Provider URI (Scoped Storage compatible)
+                    // e.g., content://media/external/audio/media/12345
+                    Uri contentUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
 
                     JSObject track = new JSObject();
                     track.put("id", "native-" + id);
@@ -112,8 +113,8 @@ public class MusicScannerPlugin extends Plugin {
                     track.put("artist", artist != null && !artist.equals("<unknown>") ? artist : "Unknown Artist");
                     track.put("album", album != null && !album.equals("<unknown>") ? album : "Unknown Album");
                     track.put("duration", durationSec);
-                    track.put("filePath", path);
-                    track.put("genre", "Local Music");
+                    track.put("filePath", contentUri.toString()); // Crucial: use Content URI as play source!
+                    track.put("genre", "Local Audio");
                     
                     // Extract folder name
                     String folderName = "Root";

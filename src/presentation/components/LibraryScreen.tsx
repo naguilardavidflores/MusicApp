@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import type { Track } from '../../domain/entities';
-import { Search, Folder, User, Disc, Upload, Trash2, Plus, Clock, CornerDownRight, Heart } from 'lucide-react';
+import { Search, Folder, User, Disc, Upload, Trash2, Plus, Clock, CornerDownRight, Heart, Play } from 'lucide-react';
+import { Title, Subtitle, BodyText, MutedText } from './ui/Typography';
+import { Button } from './ui/Button';
+import { IconButton } from './ui/IconButton';
+import { TrackRow } from './ui/TrackRow';
 
 export const LibraryScreen: React.FC = () => {
   const {
@@ -33,12 +37,6 @@ export const LibraryScreen: React.FC = () => {
     }
   };
 
-  const formatDuration = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const secs = Math.floor(sec % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
-  };
-
   // 1. Filtering logic based on search
   const filteredTracks = tracks.filter((track) => {
     const query = searchQuery.toLowerCase();
@@ -49,159 +47,78 @@ export const LibraryScreen: React.FC = () => {
     );
   });
 
-  // Check if current track is in Favorites
-  const isTrackFavorite = (trackId: string) => {
-    const favPlaylist = playlists.find((p) => p.isSystem && p.id === 'favorites');
-    return favPlaylist ? favPlaylist.trackIds.includes(trackId) : false;
-  };
-
-  // 2. Classifications (Artists, Albums, Folders)
+  // 2. Classifications logic
   const uniqueArtists = Array.from(new Set(tracks.map((t) => t.artist))).sort();
   const uniqueAlbums = Array.from(new Set(tracks.map((t) => t.album))).sort();
   const uniqueFolders = Array.from(new Set(tracks.map((t) => t.parentFolder))).sort();
 
-  // Sub-browsing renders
-  if (selectedArtist) {
-    const artistTracks = tracks.filter((t) => t.artist === selectedArtist);
-    return (
-      <div className="screen-content">
-        <div className="screen-header" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button className="player-btn" onClick={() => setSelectedArtist(null)} style={{ width: '36px', height: '36px' }}>
-            ←
-          </button>
-          <h1 style={{ fontSize: '20px' }}>{selectedArtist}</h1>
-        </div>
-        <div style={{ marginBottom: '16px', fontSize: '12px', color: 'hsl(var(--text-muted))' }}>
-          {artistTracks.length} canciones
-        </div>
-        {renderTrackList(artistTracks)}
-      </div>
-    );
-  }
+  // Filter lists by selected group when browsing
+  const songsByArtist = selectedArtist ? tracks.filter((t) => t.artist === selectedArtist) : [];
+  const songsByAlbum = selectedAlbum ? tracks.filter((t) => t.album === selectedAlbum) : [];
+  const songsByFolder = selectedFolder ? tracks.filter((t) => t.parentFolder === selectedFolder) : [];
 
-  if (selectedAlbum) {
-    const albumTracks = tracks.filter((t) => t.album === selectedAlbum);
-    return (
-      <div className="screen-content">
-        <div className="screen-header" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button className="player-btn" onClick={() => setSelectedAlbum(null)} style={{ width: '36px', height: '36px' }}>
-            ←
-          </button>
-          <h1 style={{ fontSize: '20px' }}>{selectedAlbum}</h1>
-        </div>
-        <div style={{ marginBottom: '16px', fontSize: '12px', color: 'hsl(var(--text-muted))' }}>
-          {albumTracks.length} canciones
-        </div>
-        {renderTrackList(albumTracks)}
-      </div>
-    );
-  }
+  const handlePlayTrack = (trackList: Track[], index: number) => {
+    playAll(trackList, index);
+  };
 
-  if (selectedFolder) {
-    const folderTracks = tracks.filter((t) => t.parentFolder === selectedFolder);
-    return (
-      <div className="screen-content">
-        <div className="screen-header" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button className="player-btn" onClick={() => setSelectedFolder(null)} style={{ width: '36px', height: '36px' }}>
-            ←
-          </button>
-          <h1 style={{ fontSize: '20px' }}>Carpeta: {selectedFolder}</h1>
-        </div>
-        <div style={{ marginBottom: '16px', fontSize: '12px', color: 'hsl(var(--text-muted))' }}>
-          {folderTracks.length} canciones
-        </div>
-        {renderTrackList(folderTracks)}
-      </div>
-    );
-  }
-
-  // Render a list of tracks helper
-  function renderTrackList(trackList: Track[]) {
-    if (trackList.length === 0) {
-      return (
-        <div className="empty-state">
-          <p>No se encontraron canciones.</p>
-        </div>
-      );
-    }
+  // Helper to render track lists with options panels
+  const renderTrackList = (trackList: Track[]) => {
+    const favPlaylist = playlists.find((p) => p.isSystem && p.id === 'favorites');
+    const favIds = favPlaylist ? favPlaylist.trackIds : [];
 
     return (
-      <div>
-        {trackList.map((track, index) => {
-          const isPlaying = playbackState.currentTrackId === track.id;
-          const isFav = isTrackFavorite(track.id);
-          
-          return (
-            <div key={track.id} style={{ display: 'flex', flexDirection: 'column' }}>
-              <div
-                className={`track-item ${isPlaying ? 'playing' : ''}`}
-                onClick={() => playAll(trackList, index)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {trackList.map((track) => {
+          const isFav = favIds.includes(track.id);
+          const isCurrent = playbackState.currentTrackId === track.id;
+
+          const trackActions = (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IconButton
+                style={{ width: '32px', height: '32px', color: isFav ? '#1DB954' : 'hsl(var(--text-muted))', padding: 0 }}
+                onClick={() => toggleFavorite(track.id)}
               >
-                {/* Cover artwork */}
-                <div className="track-artwork-wrapper">
-                  {track.coverUrl ? (
-                    <img src={track.coverUrl} alt="Artwork" className="track-artwork" />
-                  ) : (
-                    <div className="artwork-placeholder">
-                      {isPlaying && playbackState.isPlaying ? (
-                        <div className="wave-visualizer">
-                          <div className="wave-bar"></div>
-                          <div className="wave-bar"></div>
-                          <div className="wave-bar"></div>
-                          <div className="wave-bar"></div>
-                        </div>
-                      ) : (
-                        <Disc size={20} />
-                      )}
-                    </div>
-                  )}
-                </div>
+                <Heart size={16} fill={isFav ? '#1DB954' : 'none'} strokeWidth={isFav ? 0 : 2} />
+              </IconButton>
+              <IconButton
+                style={{ width: '32px', height: '32px', color: '#fff', padding: 0 }}
+                onClick={() => setShowOptionsTrackId(showOptionsTrackId === track.id ? null : track.id)}
+              >
+                <Plus size={18} />
+              </IconButton>
+              <MutedText style={{ fontVariantNumeric: 'tabular-nums', fontSize: '12px' }}>
+                {(() => {
+                  const mins = Math.floor(track.duration / 60);
+                  const secs = Math.floor(track.duration % 60).toString().padStart(2, '0');
+                  return `${mins}:${secs}`;
+                })()}
+              </MutedText>
+            </div>
+          );
 
-                {/* Track Details */}
-                <div className="track-info">
-                  <div className="track-title">{track.title}</div>
-                  <div className="track-artist-album">
-                    {track.artist} • {track.album}
-                  </div>
-                </div>
+          return (
+            <div key={track.id}>
+              <TrackRow
+                track={track}
+                isCurrent={isCurrent}
+                isPlaying={playbackState.isPlaying}
+                onClick={() => {
+                  const idx = trackList.findIndex((t) => t.id === track.id);
+                  handlePlayTrack(trackList, idx);
+                }}
+                rightAction={trackActions}
+              />
 
-                {/* Duration or options menu trigger */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    className="mini-control-btn"
-                    style={{ color: isFav ? '#ff4b72' : 'hsl(var(--text-muted))' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(track.id);
-                    }}
-                  >
-                    <Heart size={14} fill={isFav ? '#ff4b72' : 'none'} />
-                  </button>
-                  <button
-                    className="mini-control-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowOptionsTrackId(showOptionsTrackId === track.id ? null : track.id);
-                    }}
-                  >
-                    <Plus size={16} />
-                  </button>
-                  <span className="track-duration">{formatDuration(track.duration)}</span>
-                </div>
-              </div>
-
-              {/* Inline Quick Action Panel (Queue / Playlist actions - RF-P03) */}
+              {/* Quick Actions Sub-drawer */}
               {showOptionsTrackId === track.id && (
                 <div
                   className="glass-card"
                   style={{
-                    margin: '-4px 12px 10px 12px',
+                    margin: '-4px 8px 10px 8px',
                     padding: '8px 12px',
-                    borderRadius: '0 0 12px 12px',
+                    borderRadius: '0 0 8px 8px',
                     display: 'flex',
                     justifyContent: 'space-around',
-                    fontSize: '11px',
-                    gap: '10px',
                     animation: 'fade-in 0.2s ease',
                   }}
                 >
@@ -210,6 +127,8 @@ export const LibraryScreen: React.FC = () => {
                       background: 'none',
                       border: 'none',
                       color: 'hsl(var(--text-secondary))',
+                      fontSize: '11px',
+                      fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
@@ -220,13 +139,15 @@ export const LibraryScreen: React.FC = () => {
                       setShowOptionsTrackId(null);
                     }}
                   >
-                    <CornerDownRight size={14} /> Reproducir siguiente
+                    <CornerDownRight size={14} /> Siguiente
                   </button>
                   <button
                     style={{
                       background: 'none',
                       border: 'none',
                       color: 'hsl(var(--text-secondary))',
+                      fontSize: '11px',
+                      fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
@@ -237,7 +158,7 @@ export const LibraryScreen: React.FC = () => {
                       setShowOptionsTrackId(null);
                     }}
                   >
-                    <Plus size={14} /> Añadir a la cola
+                    <Plus size={14} /> Añadir a cola
                   </button>
                 </div>
               )}
@@ -246,22 +167,62 @@ export const LibraryScreen: React.FC = () => {
         })}
       </div>
     );
+  };
+
+  // Browsing detail view header
+  if (selectedArtist || selectedAlbum || selectedFolder) {
+    const title = selectedArtist || selectedAlbum || selectedFolder || '';
+    const subtracks = selectedArtist 
+      ? songsByArtist 
+      : selectedAlbum 
+      ? songsByAlbum 
+      : songsByFolder;
+
+    const handleBack = () => {
+      setSelectedArtist(null);
+      setSelectedAlbum(null);
+      setSelectedFolder(null);
+    };
+
+    return (
+      <div className="screen-content">
+        <div className="screen-header" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <IconButton onClick={handleBack} style={{ color: '#fff' }}>
+            ←
+          </IconButton>
+          <Title style={{ fontSize: '20px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {title}
+          </Title>
+        </div>
+
+        {subtracks.length > 0 && (
+          <Button
+            variant="primary"
+            style={{ width: '100%', marginBottom: '20px' }}
+            onClick={() => playAll(subtracks, 0)}
+          >
+            <Play size={16} fill="currentColor" /> Reproducir Todo
+          </Button>
+        )}
+
+        {renderTrackList(subtracks)}
+      </div>
+    );
   }
 
   return (
     <div className="screen-content">
       {/* Header */}
-      <div className="screen-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Mi Biblioteca</h1>
+      <div className="screen-header">
+        <Title>Mi Biblioteca</Title>
         {tracks.length > 0 && (
-          <button
-            className="player-btn"
-            style={{ color: '#ff4b5c', border: '1px solid rgba(255, 75, 92, 0.2)' }}
+          <IconButton
+            style={{ color: '#ff4b5c', border: '1px solid rgba(255, 75, 92, 0.2)', borderRadius: '50%' }}
             onClick={clearLibrary}
             title="Limpiar biblioteca"
           >
             <Trash2 size={16} />
-          </button>
+          </IconButton>
         )}
       </div>
 
@@ -279,8 +240,8 @@ export const LibraryScreen: React.FC = () => {
 
       {/* Categorized Segmented Tabs (RF-B03) */}
       <div className="segmented-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'songs' ? 'active' : ''}`}
+        <Button
+          variant={activeTab === 'songs' ? 'accent' : 'secondary'}
           onClick={() => {
             setActiveTab('songs');
             setSelectedArtist(null);
@@ -289,9 +250,9 @@ export const LibraryScreen: React.FC = () => {
           }}
         >
           Canciones
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'artists' ? 'active' : ''}`}
+        </Button>
+        <Button
+          variant={activeTab === 'artists' ? 'accent' : 'secondary'}
           onClick={() => {
             setActiveTab('artists');
             setSelectedArtist(null);
@@ -300,9 +261,9 @@ export const LibraryScreen: React.FC = () => {
           }}
         >
           Artistas
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'albums' ? 'active' : ''}`}
+        </Button>
+        <Button
+          variant={activeTab === 'albums' ? 'accent' : 'secondary'}
           onClick={() => {
             setActiveTab('albums');
             setSelectedArtist(null);
@@ -311,9 +272,9 @@ export const LibraryScreen: React.FC = () => {
           }}
         >
           Álbumes
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'folders' ? 'active' : ''}`}
+        </Button>
+        <Button
+          variant={activeTab === 'folders' ? 'accent' : 'secondary'}
           onClick={() => {
             setActiveTab('folders');
             setSelectedArtist(null);
@@ -322,23 +283,23 @@ export const LibraryScreen: React.FC = () => {
           }}
         >
           Carpetas
-        </button>
+        </Button>
       </div>
 
       {/* Screen body depending on tabs */}
       {isScanning && (
         <div className="empty-state">
           <Clock size={36} className="animate-pulse" style={{ color: 'hsl(var(--accent))' }} />
-          <h3>Escaneando archivos...</h3>
-          <p>Extrayendo metadatos ID3 y organizando canciones.</p>
+          <Subtitle>Escaneando archivos...</Subtitle>
+          <MutedText>Buscando audios en el dispositivo.</MutedText>
         </div>
       )}
 
       {!isScanning && tracks.length === 0 && (
         <div className="empty-state" style={{ height: '350px' }}>
           <Disc size={48} style={{ color: 'hsl(var(--text-muted))' }} />
-          <h3>Biblioteca vacía</h3>
-          <p>Importa archivos de música locales para empezar.</p>
+          <Subtitle>Biblioteca vacía</Subtitle>
+          <MutedText>Importa archivos de música locales para empezar.</MutedText>
           <label className="scan-btn-label" style={{ marginTop: '12px' }}>
             <Upload size={16} /> Escanear Carpeta
             <input
@@ -407,7 +368,7 @@ export const LibraryScreen: React.FC = () => {
                         width: '40px',
                         height: '40px',
                         borderRadius: '10px',
-                        background: 'linear-gradient(135deg, hsl(var(--accent-secondary) / 0.2) 0%, hsl(var(--accent) / 0.5) 100%)',
+                        background: 'linear-gradient(135deg, hsl(var(--accent) / 0.15) 0%, hsl(var(--accent) / 0.5) 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -436,12 +397,12 @@ export const LibraryScreen: React.FC = () => {
                     className="folder-item"
                     onClick={() => setSelectedFolder(folder)}
                   >
-                    <Folder size={20} style={{ color: 'hsl(var(--accent-secondary))' }} />
+                    <Folder size={20} style={{ color: 'hsl(var(--accent))' }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{folder}</div>
-                      <div style={{ fontSize: '11px', color: 'hsl(var(--text-muted))' }}>
+                      <BodyText style={{ fontSize: '13px', fontWeight: 600 }}>{folder}</BodyText>
+                      <MutedText style={{ fontSize: '11px' }}>
                         {tracks.filter((t) => t.parentFolder === folder).length} archivos de audio
-                      </div>
+                      </MutedText>
                     </div>
                   </div>
                 ))}

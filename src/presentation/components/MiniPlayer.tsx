@@ -1,6 +1,9 @@
 import React from 'react';
 import { useAudio } from '../context/AudioContext';
-import { Play, Pause, SkipForward, Disc } from 'lucide-react';
+import { Play, Pause, SkipForward } from 'lucide-react';
+import { Artwork } from './ui/Artwork';
+import { IconButton } from './ui/IconButton';
+import { BodyText, MutedText } from './ui/Typography';
 
 export const MiniPlayer: React.FC = () => {
   const { playbackState, tracks, togglePlay, nextTrack, setActiveScreen } = useAudio();
@@ -13,18 +16,18 @@ export const MiniPlayer: React.FC = () => {
     : 0;
 
   const handlePlayPause = (e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent opening full screen
+    e.stopPropagation();
     togglePlay();
   };
 
   const handleNext = (e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent opening full screen
+    e.stopPropagation();
     nextTrack();
   };
 
   return (
     <div 
-      className="mini-player glass"
+      className="mini-player"
       onClick={() => setActiveScreen('player')}
     >
       {/* Top micro progress line */}
@@ -33,37 +36,29 @@ export const MiniPlayer: React.FC = () => {
         style={{ width: `${progressPercent}%` }}
       ></div>
 
-      {/* Album Art (spinning disc style) */}
-      <div className={`track-artwork-wrapper ${playbackState.isPlaying ? 'disc-wrapper playing' : ''}`} style={{ width: 40, height: 40 }}>
-        {currentTrack.coverUrl ? (
-          <img src={currentTrack.coverUrl} alt="Cover" className="track-artwork" />
-        ) : (
-          <div className="artwork-placeholder">
-            <Disc size={20} className={playbackState.isPlaying ? 'animate-spin' : ''} style={{ animationDuration: '4s' }} />
-          </div>
-        )}
-      </div>
+      {/* Reusable Artwork component */}
+      <Artwork coverUrl={currentTrack.coverUrl} size={40} iconSize={16} />
 
       {/* Title & Artist */}
       <div className="track-info">
-        <div className="track-title" style={{ fontSize: '13px' }}>{currentTrack.title}</div>
-        <div className="track-artist-album" style={{ fontSize: '10px' }}>{currentTrack.artist}</div>
+        <BodyText style={{ fontSize: '13px', fontWeight: 600 }}>{currentTrack.title}</BodyText>
+        <MutedText style={{ fontSize: '10px' }}>{currentTrack.artist}</MutedText>
       </div>
 
       {/* Controls */}
-      <div className="mini-player-controls">
-        <button 
-          className="mini-control-btn"
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <IconButton 
+          style={{ width: '36px', height: '36px', color: '#fff' }}
           onClick={handlePlayPause}
         >
           {playbackState.isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-        </button>
-        <button 
-          className="mini-control-btn"
+        </IconButton>
+        <IconButton 
+          style={{ width: '36px', height: '36px', color: '#fff' }}
           onClick={handleNext}
         >
           <SkipForward size={18} fill="currentColor" />
-        </button>
+        </IconButton>
       </div>
     </div>
   );
